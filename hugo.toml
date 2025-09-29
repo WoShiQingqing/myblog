@@ -1,0 +1,18 @@
+baseURL = "https://example.com/"   # 先随便写，之后换成 GitHub Pages 地址
+languageCode = "en-us"
+title = "清的博客"
+theme = "PaperMod"
+
+[pagination]
+  pageSize = 5
+
+[params]
+  ShowReadingTime = true
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  defaultTheme = "auto" # 自动切换亮/暗色
+
+baseURL = 'https://example.org/'
+languageCode = 'en-us'
+title = 'My New Hugo Site'

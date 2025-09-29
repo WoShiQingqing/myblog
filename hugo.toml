@@ -1,4 +1,7 @@
-baseURL = "https://example.com/"   # 先随便写，之后换成 GitHub Pages 地址
+baseURL = "https://WoShiQingqing.github.io/myblog/"   # 先随便写，之后换成 GitHub Pages 地址
+canonifyURLs = true
+relativeURLs = true
+
 languageCode = "en-us"
 title = "清的博客"
 theme = "PaperMod"

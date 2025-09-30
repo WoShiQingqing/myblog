@@ -14,4 +14,56 @@ theme = "PaperMod"
   ShowPostNavLinks = true
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
-  defaultTheme = "auto" # 自动切换亮/暗色
+  defaultTheme = "auto"
+
+[params.assets]
+  favicon = "favicon.ico"
+  favicon16x16 = "favicon-16x16.png"
+  favicon32x32 = "favicon-32x32.png"
+  apple_touch_icon = "apple-touch-icon.png"
+  safari_pinned_tab = "safari-pinned-tab.svg"
+
+
+[params.homeInfoParams]
+  Title = "清的博客"
+  Content = "云原生 / DevOps / Go / Python ｜ 学习记录与分享"
+
+[[params.socialIcons]]
+  name = "github"
+  url  = "https://github.com/WoShiQingqing"
+
+[[params.socialIcons]]
+  name = "email"
+  url  = "mailto:3356025711@qq.com"
+
+[menu]
+
+  [[menu.main]]
+    identifier = "home"
+    name = "首页"
+    url = "/"
+    weight = 1
+
+  [[menu.main]]
+    identifier = "posts"
+    name = "文章"
+    url = "/posts/"
+    weight = 2
+
+  [[menu.main]]
+    identifier = "categories"
+    name = "分类"
+    url = "/categories/"
+    weight = 3
+
+  [[menu.main]]
+    identifier = "tags"
+    name = "标签"
+    url = "/tags/"
+    weight = 4
+
+  [[menu.main]]
+    identifier = "about"
+    name = "关于我"
+    url = "/about/"
+    weight = 5

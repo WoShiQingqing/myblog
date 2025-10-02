@@ -1,5 +1,5 @@
 +++
-title = '把镜像从900MB瘦到5MB：多阶段构建和非root实战'
+title = 'Docker 镜像优化实战：从 900MB 到 5MB，multi-stage 构建与非 root'
 date = 2025-10-02T11:35:11+08:00
 draft = true
 +++

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Debug on 清的博客</title><link>https://WoShiQingqing.github.io/myblog/tags/debug/</link><description>Recent content in Debug on 清的博客</description><generator>Hugo -- 0.151.0</generator><language>en-us</language><lastBuildDate>Wed, 08 Oct 2025 19:00:23 +0800</lastBuildDate><atom:link href="https://WoShiQingqing.github.io/myblog/tags/debug/index.xml" rel="self" type="application/rss+xml"/><item><title>用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障</title><link>https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/</link><pubDate>Wed, 08 Oct 2025 19:00:23 +0800</pubDate><guid>https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/</guid><description>&lt;h2 id="context"&gt;Context&lt;/h2&gt;
+&lt;p&gt;目标：&lt;br&gt;
+验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。&lt;/p&gt;
+&lt;p&gt;环境：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;kind 单节点集群&lt;/li&gt;
+&lt;li&gt;命名空间：&lt;code&gt;jobflow&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;组件：&lt;code&gt;jobflow-api&lt;/code&gt;、&lt;code&gt;jobflow-worker&lt;/code&gt;、&lt;code&gt;redis&lt;/code&gt;、&lt;code&gt;ingress-nginx&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;域名：&lt;code&gt;jobflow.local&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;服务端口：&lt;code&gt;8080&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="steps"&gt;Steps&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Ingress 验证&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -i -H &lt;span style="color:#e6db74"&gt;&amp;#34;Host: jobflow.local&amp;#34;&lt;/span&gt; http://127.0.0.1:8080/status/123
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;✅ 返回：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;{&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;status&amp;#34;&lt;/span&gt;:&lt;span style="color:#e6db74"&gt;&amp;#34;not found&amp;#34;&lt;/span&gt;&lt;span style="color:#f92672"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ol start="2"&gt;
+&lt;li&gt;&lt;strong&gt;注入 CrashLoopBackOff 故障&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kubectl -n jobflow patch deploy jobflow-api --type&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;json&amp;#39;&lt;/span&gt; -p&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;[
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; {&amp;#34;op&amp;#34;:&amp;#34;add&amp;#34;,&amp;#34;path&amp;#34;:&amp;#34;/spec/template/spec/containers/0/command&amp;#34;,&amp;#34;value&amp;#34;:[&amp;#34;/bin/sh&amp;#34;,&amp;#34;-c&amp;#34;,&amp;#34;echo BOOM &amp;amp;&amp;amp; exit 1&amp;#34;]}
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt;]&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kubectl -n jobflow get pods -w
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&amp;lsquo;Pod&amp;rsquo;状态进入：&amp;lsquo;CrashLoopBackOff&amp;rsquo;&lt;/p&gt;
+&lt;ol start="3"&gt;
+&lt;li&gt;&lt;strong&gt;查看故障详情&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kubectl -n jobflow describe pod -l app&lt;span style="color:#f92672"&gt;=&lt;/span&gt;jobflow-api
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;输出：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;Back-off restarting failed container
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ol start="4"&gt;
+&lt;li&gt;&lt;strong&gt;确认退出码&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kubectl -n jobflow get pod -l app&lt;span style="color:#f92672"&gt;=&lt;/span&gt;jobflow-api &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#ae81ff"&gt;&lt;/span&gt; -o jsonpath&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;结果'128&amp;rsquo;&lt;/p&gt;</description></item></channel></rss>

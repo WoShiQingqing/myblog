@@ -1,0 +1,109 @@
+<!doctype html><html lang=en dir=auto><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=robots content="index, follow"><title>用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障 | 清的博客</title><meta name=keywords content="Kubernetes,DevOps,CloudNative,Debug,CrashLoopBackOff"><meta name=description content='Context
+目标：
+验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。
+环境：
+
+kind 单节点集群
+命名空间：jobflow
+组件：jobflow-api、jobflow-worker、redis、ingress-nginx
+域名：jobflow.local
+服务端口：8080
+
+
+Steps
+
+Ingress 验证
+
+kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80
+curl -i -H "Host: jobflow.local" http://127.0.0.1:8080/status/123
+✅ 返回：
+{"status":"not found"}
+
+注入 CrashLoopBackOff 故障
+
+kubectl -n jobflow patch deploy jobflow-api --type=&#39;json&#39; -p=&#39;[
+  {"op":"add","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-c","echo BOOM && exit 1"]}
+]&#39;
+kubectl -n jobflow get pods -w
+&lsquo;Pod&rsquo;状态进入：&lsquo;CrashLoopBackOff&rsquo;
+
+查看故障详情
+
+kubectl -n jobflow describe pod -l app=jobflow-api
+输出：
+Back-off restarting failed container
+
+确认退出码
+
+kubectl -n jobflow get pod -l app=jobflow-api \
+  -o jsonpath=&#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}&#39;
+结果&#39;128&rsquo;'><meta name=author content><link rel=canonical href=https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/><link crossorigin=anonymous href=/myblog/assets/css/stylesheet.a090830a421002426baafbd314e38f149d77b4c48a12ee9312700d770b27fb26.css integrity="sha256-oJCDCkIQAkJrqvvTFOOPFJ13tMSKEu6TEnANdwsn+yY=" rel="preload stylesheet" as=style><link rel=icon href=https://WoShiQingqing.github.io/myblog/favicon.ico><link rel=icon type=image/png sizes=16x16 href=https://WoShiQingqing.github.io/myblog/favicon-16x16.png><link rel=icon type=image/png sizes=32x32 href=https://WoShiQingqing.github.io/myblog/favicon-32x32.png><link rel=apple-touch-icon href=https://WoShiQingqing.github.io/myblog/apple-touch-icon.png><link rel=mask-icon href=https://WoShiQingqing.github.io/myblog/safari-pinned-tab.svg><meta name=theme-color content="#2e2e33"><meta name=msapplication-TileColor content="#2e2e33"><link rel=alternate hreflang=en href=https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/><noscript><style>#theme-toggle,.top-link{display:none}</style><style>@media(prefers-color-scheme:dark){:root{--theme:rgb(29, 30, 32);--entry:rgb(46, 46, 51);--primary:rgb(218, 218, 219);--secondary:rgb(155, 156, 157);--tertiary:rgb(65, 66, 68);--content:rgb(196, 196, 197);--code-block-bg:rgb(46, 46, 51);--code-bg:rgb(55, 56, 62);--border:rgb(51, 51, 51)}.list{background:var(--theme)}.list:not(.dark)::-webkit-scrollbar-track{background:0 0}.list:not(.dark)::-webkit-scrollbar-thumb{border-color:var(--theme)}}</style></noscript><meta property="og:url" content="https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/"><meta property="og:site_name" content="清的博客"><meta property="og:title" content="用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障"><meta property="og:description" content='Context 目标：
+验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。
+环境：
+kind 单节点集群 命名空间：jobflow 组件：jobflow-api、jobflow-worker、redis、ingress-nginx 域名：jobflow.local 服务端口：8080 Steps Ingress 验证 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80 curl -i -H "Host: jobflow.local" http://127.0.0.1:8080/status/123 ✅ 返回：
+{"status":"not found"} 注入 CrashLoopBackOff 故障 kubectl -n jobflow patch deploy jobflow-api --type=&#39;json&#39; -p=&#39;[ {"op":"add","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-c","echo BOOM && exit 1"]} ]&#39; kubectl -n jobflow get pods -w ‘Pod’状态进入：‘CrashLoopBackOff’
+查看故障详情 kubectl -n jobflow describe pod -l app=jobflow-api 输出：
+Back-off restarting failed container 确认退出码 kubectl -n jobflow get pod -l app=jobflow-api \ -o jsonpath=&#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}&#39; 结果&#39;128’'><meta property="og:locale" content="en-us"><meta property="og:type" content="article"><meta property="article:section" content="posts"><meta property="article:published_time" content="2025-10-08T19:00:23+08:00"><meta property="article:modified_time" content="2025-10-08T19:00:23+08:00"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="DevOps"><meta property="article:tag" content="CloudNative"><meta property="article:tag" content="Debug"><meta property="article:tag" content="CrashLoopBackOff"><meta name=twitter:card content="summary"><meta name=twitter:title content="用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障"><meta name=twitter:description content='Context
+目标：
+验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。
+环境：
+
+kind 单节点集群
+命名空间：jobflow
+组件：jobflow-api、jobflow-worker、redis、ingress-nginx
+域名：jobflow.local
+服务端口：8080
+
+
+Steps
+
+Ingress 验证
+
+kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80
+curl -i -H "Host: jobflow.local" http://127.0.0.1:8080/status/123
+✅ 返回：
+{"status":"not found"}
+
+注入 CrashLoopBackOff 故障
+
+kubectl -n jobflow patch deploy jobflow-api --type=&#39;json&#39; -p=&#39;[
+  {"op":"add","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-c","echo BOOM && exit 1"]}
+]&#39;
+kubectl -n jobflow get pods -w
+&lsquo;Pod&rsquo;状态进入：&lsquo;CrashLoopBackOff&rsquo;
+
+查看故障详情
+
+kubectl -n jobflow describe pod -l app=jobflow-api
+输出：
+Back-off restarting failed container
+
+确认退出码
+
+kubectl -n jobflow get pod -l app=jobflow-api \
+  -o jsonpath=&#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}&#39;
+结果&#39;128&rsquo;'><script type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Posts","item":"https://WoShiQingqing.github.io/myblog/posts/"},{"@type":"ListItem","position":2,"name":"用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障","item":"https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/"}]}</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","headline":"用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障","name":"用 k3s 把 API\u002bWorker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障","description":"Context 目标：\n验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。\n环境：\nkind 单节点集群 命名空间：jobflow 组件：jobflow-api、jobflow-worker、redis、ingress-nginx 域名：jobflow.local 服务端口：8080 Steps Ingress 验证 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80 curl -i -H \u0026#34;Host: jobflow.local\u0026#34; http://127.0.0.1:8080/status/123 ✅ 返回：\n{\u0026#34;status\u0026#34;:\u0026#34;not found\u0026#34;} 注入 CrashLoopBackOff 故障 kubectl -n jobflow patch deploy jobflow-api --type=\u0026#39;json\u0026#39; -p=\u0026#39;[ {\u0026#34;op\u0026#34;:\u0026#34;add\u0026#34;,\u0026#34;path\u0026#34;:\u0026#34;/spec/template/spec/containers/0/command\u0026#34;,\u0026#34;value\u0026#34;:[\u0026#34;/bin/sh\u0026#34;,\u0026#34;-c\u0026#34;,\u0026#34;echo BOOM \u0026amp;\u0026amp; exit 1\u0026#34;]} ]\u0026#39; kubectl -n jobflow get pods -w \u0026lsquo;Pod\u0026rsquo;状态进入：\u0026lsquo;CrashLoopBackOff\u0026rsquo;\n查看故障详情 kubectl -n jobflow describe pod -l app=jobflow-api 输出：\nBack-off restarting failed container 确认退出码 kubectl -n jobflow get pod -l app=jobflow-api \\ -o jsonpath=\u0026#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}\u0026#39; 结果'128\u0026rsquo;\n","keywords":["Kubernetes","DevOps","CloudNative","Debug","CrashLoopBackOff"],"articleBody":"Context 目标：\n验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。\n环境：\nkind 单节点集群 命名空间：jobflow 组件：jobflow-api、jobflow-worker、redis、ingress-nginx 域名：jobflow.local 服务端口：8080 Steps Ingress 验证 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80 curl -i -H \"Host: jobflow.local\" http://127.0.0.1:8080/status/123 ✅ 返回：\n{\"status\":\"not found\"} 注入 CrashLoopBackOff 故障 kubectl -n jobflow patch deploy jobflow-api --type='json' -p='[ {\"op\":\"add\",\"path\":\"/spec/template/spec/containers/0/command\",\"value\":[\"/bin/sh\",\"-c\",\"echo BOOM \u0026\u0026 exit 1\"]} ]' kubectl -n jobflow get pods -w ‘Pod’状态进入：‘CrashLoopBackOff’\n查看故障详情 kubectl -n jobflow describe pod -l app=jobflow-api 输出：\nBack-off restarting failed container 确认退出码 kubectl -n jobflow get pod -l app=jobflow-api \\ -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}' 结果'128’\n执行回滚 kubectl -n jobflow rollout undo deploy/jobflow-api kubectl -n jobflow get pods -w ✅‘Pod’恢复为 Running\n验证服务恢复 curl -i -H \"Host: jobflow.local\" http://127.0.0.1:8080/status/123 ✅ 正常返回：\n{\"status\":\"not found\"} Data 截图占位：\n‘kubectl get pods’出现’CrashLoopBackOff’ ‘kubectl describe’显示’Back-off restarting failed container’ ‘kubectl rollout undo’后恢复’Running’ 浏览器访问’jobflow.local:8080/status/123’成功页面 Pitfalls ‘CrashLoopBackOff’常见原因：\n启动命令异常退出（’exit 1’） 环境变量缺失（如’REDIS_ADDR’） 探针检测失败（’livenessProbe’） 避坑：\n用’exitCode’判断异常类型 用’kubectl describe’看事件，而不是只看’logs’ 频繁重启时用’rollout undo’回滚更安全 Wrap-up 本周闭环： 从「Ingress 通路 → 故障注入 → 诊断分析 → 回滚恢复」完整跑通。\n下一步： 引入健康探针（livenessProbe + /ping 路由） → 让服务具备自愈能力。\n","wordCount":"153","inLanguage":"en","datePublished":"2025-10-08T19:00:23+08:00","dateModified":"2025-10-08T19:00:23+08:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://WoShiQingqing.github.io/myblog/posts/k3s-crashloopbackoff/"},"publisher":{"@type":"Organization","name":"清的博客","logo":{"@type":"ImageObject","url":"https://WoShiQingqing.github.io/myblog/favicon.ico"}}}</script></head><body id=top><script>localStorage.getItem("pref-theme")==="dark"?document.body.classList.add("dark"):localStorage.getItem("pref-theme")==="light"?document.body.classList.remove("dark"):window.matchMedia("(prefers-color-scheme: dark)").matches&&document.body.classList.add("dark")</script><header class=header><nav class=nav><div class=logo><a href=https://WoShiQingqing.github.io/myblog/ accesskey=h title="清的博客 (Alt + H)">清的博客</a><div class=logo-switches><button id=theme-toggle accesskey=t title="(Alt + T)" aria-label="Toggle theme">
+<svg id="moon" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+<svg id="sun" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu><li><a href=https://WoShiQingqing.github.io/myblog/ title=首页><span>首页</span></a></li><li><a href=https://WoShiQingqing.github.io/myblog/posts/ title=文章><span>文章</span></a></li><li><a href=https://WoShiQingqing.github.io/myblog/categories/ title=分类><span>分类</span></a></li><li><a href=https://WoShiQingqing.github.io/myblog/tags/ title=标签><span>标签</span></a></li><li><a href=https://WoShiQingqing.github.io/myblog/about/ title=关于我><span>关于我</span></a></li></ul></nav></header><main class=main><article class=post-single><header class=post-header><div class=breadcrumbs><a href=https://WoShiQingqing.github.io/myblog/>Home</a>&nbsp;»&nbsp;<a href=https://WoShiQingqing.github.io/myblog/posts/>Posts</a></div><h1 class="post-title entry-hint-parent">用 k3s 把 API+Worker 跑起来：HPA 首次生效与一次 CrashLoopBackOff 的排障</h1><div class=post-meta><span title='2025-10-08 19:00:23 +0800 +0800'>October 8, 2025</span>&nbsp;·&nbsp;<span>1 min</span></div></header><div class=post-content><h2 id=context>Context<a hidden class=anchor aria-hidden=true href=#context>#</a></h2><p>目标：<br>验证 Ingress → jobflow-api → Redis 链路是否可通，并模拟一次容器崩溃（CrashLoopBackOff），完成定位与恢复。</p><p>环境：</p><ul><li>kind 单节点集群</li><li>命名空间：<code>jobflow</code></li><li>组件：<code>jobflow-api</code>、<code>jobflow-worker</code>、<code>redis</code>、<code>ingress-nginx</code></li><li>域名：<code>jobflow.local</code></li><li>服务端口：<code>8080</code></li></ul><hr><h2 id=steps>Steps<a hidden class=anchor aria-hidden=true href=#steps>#</a></h2><ol><li><strong>Ingress 验证</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80
+</span></span><span style=display:flex><span>curl -i -H <span style=color:#e6db74>&#34;Host: jobflow.local&#34;</span> http://127.0.0.1:8080/status/123
+</span></span></code></pre></div><p>✅ 返回：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#f92672>{</span><span style=color:#e6db74>&#34;status&#34;</span>:<span style=color:#e6db74>&#34;not found&#34;</span><span style=color:#f92672>}</span>
+</span></span></code></pre></div><ol start=2><li><strong>注入 CrashLoopBackOff 故障</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl -n jobflow patch deploy jobflow-api --type<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;json&#39;</span> -p<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;[
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  {&#34;op&#34;:&#34;add&#34;,&#34;path&#34;:&#34;/spec/template/spec/containers/0/command&#34;,&#34;value&#34;:[&#34;/bin/sh&#34;,&#34;-c&#34;,&#34;echo BOOM &amp;&amp; exit 1&#34;]}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>]&#39;</span>
+</span></span><span style=display:flex><span>kubectl -n jobflow get pods -w
+</span></span></code></pre></div><p>&lsquo;Pod&rsquo;状态进入：&lsquo;CrashLoopBackOff&rsquo;</p><ol start=3><li><strong>查看故障详情</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl -n jobflow describe pod -l app<span style=color:#f92672>=</span>jobflow-api
+</span></span></code></pre></div><p>输出：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>Back-off restarting failed container
+</span></span></code></pre></div><ol start=4><li><strong>确认退出码</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl -n jobflow get pod -l app<span style=color:#f92672>=</span>jobflow-api <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>  -o jsonpath<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;{.items[0].status.containerStatuses[0].lastState.terminated.exitCode}&#39;</span>
+</span></span></code></pre></div><p>结果'128&rsquo;</p><ol start=5><li><strong>执行回滚</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl -n jobflow rollout undo deploy/jobflow-api
+</span></span><span style=display:flex><span>kubectl -n jobflow get pods -w
+</span></span></code></pre></div><p>✅&lsquo;Pod&rsquo;恢复为 Running</p><ol start=6><li><strong>验证服务恢复</strong></li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>curl -i -H <span style=color:#e6db74>&#34;Host: jobflow.local&#34;</span> http://127.0.0.1:8080/status/123
+</span></span></code></pre></div><p>✅ 正常返回：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#f92672>{</span><span style=color:#e6db74>&#34;status&#34;</span>:<span style=color:#e6db74>&#34;not found&#34;</span><span style=color:#f92672>}</span>
+</span></span></code></pre></div><h2 id=data>Data<a hidden class=anchor aria-hidden=true href=#data>#</a></h2><p>截图占位：</p><ul><li>&lsquo;kubectl get pods&rsquo;出现&rsquo;CrashLoopBackOff&rsquo;</li><li>&lsquo;kubectl describe&rsquo;显示&rsquo;Back-off restarting failed container&rsquo;</li><li>&lsquo;kubectl rollout undo&rsquo;后恢复&rsquo;Running&rsquo;</li><li>浏览器访问&rsquo;jobflow.local:8080/status/123&rsquo;成功页面</li></ul><h2 id=pitfalls>Pitfalls<a hidden class=anchor aria-hidden=true href=#pitfalls>#</a></h2><p>&lsquo;CrashLoopBackOff&rsquo;常见原因：</p><ul><li>启动命令异常退出（&rsquo;exit 1&rsquo;）</li><li>环境变量缺失（如&rsquo;REDIS_ADDR&rsquo;）</li><li>探针检测失败（&rsquo;livenessProbe&rsquo;）</li></ul><p>避坑：</p><ul><li>用&rsquo;exitCode&rsquo;判断异常类型</li><li>用&rsquo;kubectl describe&rsquo;看事件，而不是只看&rsquo;logs&rsquo;</li><li>频繁重启时用&rsquo;rollout undo&rsquo;回滚更安全</li></ul><h2 id=wrap-up>Wrap-up<a hidden class=anchor aria-hidden=true href=#wrap-up>#</a></h2><p>本周闭环：
+从「Ingress 通路 → 故障注入 → 诊断分析 → 回滚恢复」完整跑通。</p><p>下一步：
+引入健康探针（livenessProbe + /ping 路由）
+→ 让服务具备自愈能力。</p></div><footer class=post-footer><ul class=post-tags><li><a href=https://WoShiQingqing.github.io/myblog/tags/kubernetes/>Kubernetes</a></li><li><a href=https://WoShiQingqing.github.io/myblog/tags/devops/>DevOps</a></li><li><a href=https://WoShiQingqing.github.io/myblog/tags/cloudnative/>CloudNative</a></li><li><a href=https://WoShiQingqing.github.io/myblog/tags/debug/>Debug</a></li><li><a href=https://WoShiQingqing.github.io/myblog/tags/crashloopbackoff/>CrashLoopBackOff</a></li></ul><nav class=paginav><a class=next href=https://WoShiQingqing.github.io/myblog/posts/hugo-blog-tutorial/><span class=title>Next »</span><br><span>Hugo Blog Tutorial</span></a></nav></footer></article></main><footer class=footer><span>&copy; 2025 <a href=https://WoShiQingqing.github.io/myblog/>清的博客</a></span> ·
+<span>Powered by
+<a href=https://gohugo.io/ rel="noopener noreferrer" target=_blank>Hugo</a> &
+<a href=https://github.com/adityatelange/hugo-PaperMod/ rel=noopener target=_blank>PaperMod</a></span></footer><a href=#top aria-label="go to top" title="Go to Top (Alt + G)" class=top-link id=top-link accesskey=g><svg viewBox="0 0 12 6" fill="currentColor"><path d="M12 6H0l6-6z"/></svg>
+</a><script>let menu=document.getElementById("menu");menu&&(menu.scrollLeft=localStorage.getItem("menu-scroll-position"),menu.onscroll=function(){localStorage.setItem("menu-scroll-position",menu.scrollLeft)}),document.querySelectorAll('a[href^="#"]').forEach(e=>{e.addEventListener("click",function(e){e.preventDefault();var t=this.getAttribute("href").substr(1);window.matchMedia("(prefers-reduced-motion: reduce)").matches?document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView():document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView({behavior:"smooth"}),t==="top"?history.replaceState(null,null," "):history.pushState(null,null,`#${t}`)})})</script><script>var mybutton=document.getElementById("top-link");window.onscroll=function(){document.body.scrollTop>800||document.documentElement.scrollTop>800?(mybutton.style.visibility="visible",mybutton.style.opacity="1"):(mybutton.style.visibility="hidden",mybutton.style.opacity="0")}</script><script>document.getElementById("theme-toggle").addEventListener("click",()=>{document.body.className.includes("dark")?(document.body.classList.remove("dark"),localStorage.setItem("pref-theme","light")):(document.body.classList.add("dark"),localStorage.setItem("pref-theme","dark"))})</script><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script></body></html>
